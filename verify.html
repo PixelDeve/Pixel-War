@@ -1,25 +1,30 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>verify</title></head>
-<body style="background:#000">
-<!-- Opened silently by the game launcher. It only asks Firebase whether the saved username
-     still exists and still belongs to the saved account, then reports back to the app. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>verify</title></head>
+<body style="background:#000;color:#ccc;font-family:sans-serif;padding:16px">
+<!-- Opened silently by the game launcher (inside the app it stays invisible).
+     Open it in a normal browser as  .../verify.html?u=YourName  to see a readable test result. -->
+<div id="out"></div>
 <script src="firebase-config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 (function () {
+  var inApp = !!window.Gate;
+  function say(t) { if (!inApp) document.getElementById("out").textContent = t; }
   var q = new URLSearchParams(location.search);
   var name = q.get("u") || "", id = q.get("id") || "";
-  if (!/^[A-Za-z0-9_]{3,16}$/.test(name) || !id) { if (window.Gate) Gate.revoked(); return; }
+  if (!/^[A-Za-z0-9_]{3,16}$/.test(name)) { if (inApp) Gate.revoked(); else say("Add ?u=YourUsername to the address."); return; }
+  if (typeof firebaseConfig === "undefined" || /PASTE_/.test(JSON.stringify(firebaseConfig))) { say("firebase-config.js still has the PASTE_ placeholders (or is missing)."); return; }
+  say("Checking...");
   firebase.initializeApp(firebaseConfig);
-  var db = firebase.firestore();
-  db.collection("usernames").doc(name.toLowerCase()).get({ source: "server" }).then(function (snap) {
-    if (!window.Gate) return;
+  firebase.firestore().collection("usernames").doc(name.toLowerCase()).get({ source: "server" }).then(function (snap) {
     var d = snap.exists ? snap.data() : null;
-    if (d && d.uid === id) Gate.verified(d.username);   // official spelling from Firebase
-    else Gate.revoked();                                  // name deleted or owned by someone else
-  }).catch(function () {
-    // Offline or Firebase unreachable: say nothing, so the game stays on the loading screen.
+    if (!inApp) { say(d ? "FOUND: username=" + d.username + " | owner uid=" + d.uid + (id ? (d.uid === id ? " | MATCHES id" : " | DOES NOT match id") : "")
+                        : "NOT FOUND: no such username in Firebase."); return; }
+    if (d && id && d.uid === id) Gate.verified(d.username);   // official spelling from Firebase
+    else Gate.revoked();                                        // deleted, or owned by someone else
+  }).catch(function (e) {
+    say("ERROR " + (e && e.code) + ": " + (e && e.message));   // in the app: stay silent so the loading screen stays up while offline
   });
 })();
 </script>
