@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Minecraft PE Login</title>
+<style>
+  :root { --bg:#1b1d1f; --card:#2a2d30; --text:#f2f2f2; --muted:#a9b0b5; --accent:#4caf50; --err:#ff6b6b; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; min-height:100%; background:var(--bg); color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  body { display:flex; align-items:center; justify-content:center; padding:20px;
+    padding-top:max(20px,env(safe-area-inset-top)); padding-bottom:max(20px,env(safe-area-inset-bottom)); min-height:100vh; }
+  .card { width:100%; max-width:420px; background:var(--card); border-radius:16px; padding:28px 22px; text-align:center;
+    box-shadow:0 8px 30px rgba(0,0,0,.4); }
+  h1 { font-size:1.35rem; margin:0 0 6px; }
+  p { color:var(--muted); line-height:1.45; margin:6px 0 18px; font-size:.95rem; }
+  button { width:100%; min-height:52px; border:0; border-radius:10px; font-size:1rem; font-weight:600; cursor:pointer;
+    margin-top:10px; touch-action:manipulation; }
+  button.primary { background:var(--accent); color:#fff; }
+  button.google { background:#fff; color:#202124; display:flex; align-items:center; justify-content:center; gap:10px; }
+  button.link { background:transparent; color:var(--muted); font-weight:400; min-height:40px; text-decoration:underline; }
+  button:disabled { opacity:.55; cursor:default; }
+  input { width:100%; min-height:52px; border-radius:10px; border:2px solid #444; background:#1b1d1f; color:var(--text);
+    font-size:1.1rem; padding:0 14px; text-align:center; outline:none; }
+  input:focus { border-color:var(--accent); }
+  .err { color:var(--err); min-height:1.3em; margin:10px 0 0; font-size:.92rem; }
+  .hint { font-size:.82rem; color:var(--muted); margin:8px 0 0; }
+  .name { font-size:1.5rem; font-weight:700; color:var(--accent); margin:12px 0; word-break:break-all; }
+  .spinner { width:34px; height:34px; border:4px solid #444; border-top-color:var(--accent); border-radius:50%;
+    margin:18px auto; animation:spin 1s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="card">
+
+  <section id="loading">
+    <h1>Minecraft PE</h1><div class="spinner"></div><p id="loadingText">Loading…</p>
+  </section>
+
+  <section id="signin" class="hidden">
+    <h1>Welcome</h1>
+    <p>Sign in with Google to register your player name. Your Google account is only used to
+       reserve a unique username. It is never sent to the game.</p>
+    <button class="google" id="btnGoogle">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+      Continue with Google
+    </button>
+    <p class="err" id="signinErr"></p>
+  </section>
+
+  <section id="register" class="hidden">
+    <h1>Choose your username</h1>
+    <p>This name is permanent and linked to your Google account. It cannot be changed later.</p>
+    <input id="username" type="text" maxlength="16" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Username">
+    <p class="hint">3–16 characters: letters, numbers and underscore.</p>
+    <button class="primary" id="btnCreate">Create username</button>
+    <button class="link" id="btnOut1">Use a different Google account</button>
+    <p class="err" id="regErr"></p>
+  </section>
+
+  <section id="done" class="hidden">
+    <h1>You're all set</h1>
+    <div class="name" id="finalName"></div>
+    <p>Returning to Minecraft…</p>
+    <button class="primary" id="btnOpen">Open Minecraft</button>
+    <button class="link" id="btnOut2">Use a different Google account</button>
+  </section>
+
+  <section id="error" class="hidden">
+    <h1>Something went wrong</h1>
+    <p id="fatalText"></p>
+    <button class="primary" id="btnRetry">Try again</button>
+  </section>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// ====== 1) PASTE YOUR FIREBASE WEB APP CONFIG HERE (Project settings > Your apps > Web app) ======
+const firebaseConfig = {
+  apiKey: "AIzaSyBjfXcNxyHs1xGr5Wnn1NLaaQkQOIv5KDY",
+  authDomain: "pixelwars-log-in.firebaseapp.com",    
+  projectId: "pixelwars-log-in",
+  appId: "1:293002280562:web:d0727fed6b701b069b8ceb"
+};
+// ====== 2) Package name of the game (do not change unless you changed the APK package) ======
+const GAME_PACKAGE = "com.mojang.minecraftpes";
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const $ = id => document.getElementById(id);
+const NAME_RE = /^[A-Za-z0-9_]{3,16}$/;
+let busy = false;
+
+function show(id) {
+  ["loading","signin","register","done","error"].forEach(s => $(s).classList.toggle("hidden", s !== id));
+}
+function fatal(msg) { $("fatalText").textContent = msg; show("error"); }
+function friendly(e) {
+  const c = (e && e.code) || "";
+  if (c.includes("network")) return "No internet connection. Check your network and try again.";
+  if (c.includes("popup-closed") || c.includes("cancelled-popup")) return "Sign-in was cancelled.";
+  if (c.includes("permission-denied")) return "That action was refused by the server. The name may already be taken.";
+  if (c.includes("unavailable")) return "The service is temporarily unavailable. Try again in a moment.";
+  if (c.includes("too-many-requests")) return "Too many attempts. Please wait a bit and try again.";
+  return (e && e.message) ? e.message : "Unexpected error.";
+}
+
+function returnToGame(name) {
+  $("finalName").textContent = name;
+  show("done");
+  const intentUrl = "intent://done?u=" + encodeURIComponent(name) +
+    "#Intent;scheme=mcpelogin;package=" + GAME_PACKAGE + ";end";
+  $("btnOpen").onclick = () => { location.href = intentUrl; };
+  setTimeout(() => { location.href = intentUrl; }, 700);
+}
+
+async function afterSignIn(user) {
+  show("loading"); $("loadingText").textContent = "Checking your account…";
+  try {
+    const snap = await db.collection("users").doc(user.uid).get();
+    if (snap.exists) { returnToGame(snap.data().username); return; }   // returning player: same name on every device
+    show("register"); $("username").focus();
+  } catch (e) { fatal(friendly(e)); }
+}
+
+async function createUsername() {
+  if (busy) return;
+  const user = auth.currentUser;
+  const raw = $("username").value.trim();
+  $("regErr").textContent = "";
+  if (!user) { show("signin"); return; }
+  if (!NAME_RE.test(raw)) { $("regErr").textContent = "Use 3–16 letters, numbers or underscore."; return; }
+  const lower = raw.toLowerCase();
+  busy = true; $("btnCreate").disabled = true;
+  try {
+    const nameRef = db.collection("usernames").doc(lower);
+    const userRef = db.collection("users").doc(user.uid);
+    await db.runTransaction(async tx => {
+      const existingProfile = await tx.get(userRef);
+      if (existingProfile.exists) throw { code: "already-registered" };
+      const taken = await tx.get(nameRef);
+      if (taken.exists) throw { code: "name-taken" };
+      const ts = firebase.firestore.FieldValue.serverTimestamp();
+      tx.set(nameRef, { uid: user.uid, username: raw, createdAt: ts });
+      tx.set(userRef, { uid: user.uid, username: raw, usernameLower: lower,
+                        email: user.email || "", displayName: user.displayName || "", createdAt: ts });
+    });
+    returnToGame(raw);
+  } catch (e) {
+    if (e && e.code === "name-taken") $("regErr").textContent = "That username is already taken. Try another.";
+    else if (e && e.code === "already-registered") { afterSignIn(user); }
+    else $("regErr").textContent = friendly(e);
+  } finally { busy = false; $("btnCreate").disabled = false; }
+}
+
+async function googleSignIn() {
+  $("signinErr").textContent = "";
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });   // always let the player pick an account
+  try {
+    await auth.signInWithPopup(provider);
+  } catch (e) {
+    if (e && (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment")) {
+      auth.signInWithRedirect(provider); return;
+    }
+    $("signinErr").textContent = friendly(e);
+  }
+}
+
+async function signOutAndRestart() { try { await auth.signOut(); } catch (_) {} show("signin"); }
+
+$("btnGoogle").onclick = googleSignIn;
+$("btnCreate").onclick = createUsername;
+$("username").addEventListener("keydown", e => { if (e.key === "Enter") createUsername(); });
+$("btnOut1").onclick = signOutAndRestart;
+$("btnOut2").onclick = signOutAndRestart;
+$("btnRetry").onclick = () => location.reload();
+
+auth.getRedirectResult().catch(e => { $("signinErr").textContent = friendly(e); });
+auth.onAuthStateChanged(user => { if (user) afterSignIn(user); else show("signin"); });
+</script>
+</body>
+</html>
