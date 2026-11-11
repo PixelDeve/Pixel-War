@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Minecraft PE Login</title>
+<title>PixelWar</title>
 <style>
   :root { --bg:#1b1d1f; --card:#2a2d30; --text:#f2f2f2; --muted:#a9b0b5; --accent:#4caf50; --err:#ff6b6b; }
   * { box-sizing:border-box; }
@@ -77,17 +77,12 @@
 
 </div>
 
+<script src="firebase-config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-// ====== 1) PASTE YOUR FIREBASE WEB APP CONFIG HERE (Project settings > Your apps > Web app) ======
-const firebaseConfig = {
-  apiKey: "AIzaSyBjfXcNxyHs1xGr5Wnn1NLaaQkQOIv5KDY",
-  authDomain: "pixelwars-log-in.firebaseapp.com",    
-  projectId: "pixelwars-log-in",
-  appId: "1:293002280562:web:d0727fed6b701b069b8ceb"
-};
+// firebaseConfig comes from firebase-config.js (edit that file once)
 // ====== 2) Package name of the game (do not change unless you changed the APK package) ======
 const GAME_PACKAGE = "com.mojang.minecraftpes";
 
@@ -112,10 +107,10 @@ function friendly(e) {
   return (e && e.message) ? e.message : "Unexpected error.";
 }
 
-function returnToGame(name) {
+function returnToGame(name, uid) {
   $("finalName").textContent = name;
   show("done");
-  const intentUrl = "intent://done?u=" + encodeURIComponent(name) +
+  const intentUrl = "intent://done?u=" + encodeURIComponent(name) + "&id=" + encodeURIComponent(uid) +
     "#Intent;scheme=mcpelogin;package=" + GAME_PACKAGE + ";end";
   $("btnOpen").onclick = () => { location.href = intentUrl; };
   setTimeout(() => { location.href = intentUrl; }, 700);
@@ -125,7 +120,7 @@ async function afterSignIn(user) {
   show("loading"); $("loadingText").textContent = "Checking your account…";
   try {
     const snap = await db.collection("users").doc(user.uid).get();
-    if (snap.exists) { returnToGame(snap.data().username); return; }   // returning player: same name on every device
+    if (snap.exists) { returnToGame(snap.data().username, user.uid); return; }   // returning player: same name on every device
     show("register"); $("username").focus();
   } catch (e) { fatal(friendly(e)); }
 }
@@ -152,7 +147,7 @@ async function createUsername() {
       tx.set(userRef, { uid: user.uid, username: raw, usernameLower: lower,
                         email: user.email || "", displayName: user.displayName || "", createdAt: ts });
     });
-    returnToGame(raw);
+    returnToGame(raw, user.uid);
   } catch (e) {
     if (e && e.code === "name-taken") $("regErr").textContent = "That username is already taken. Try another.";
     else if (e && e.code === "already-registered") { afterSignIn(user); }

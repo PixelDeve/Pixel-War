@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>verify</title></head>
+<body style="background:#000">
+<!-- Opened silently by the game launcher. It only asks Firebase whether the saved username
+     still exists and still belongs to the saved account, then reports back to the app. -->
+<script src="firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var name = q.get("u") || "", id = q.get("id") || "";
+  if (!/^[A-Za-z0-9_]{3,16}$/.test(name) || !id) { if (window.Gate) Gate.revoked(); return; }
+  firebase.initializeApp(firebaseConfig);
+  var db = firebase.firestore();
+  db.collection("usernames").doc(name.toLowerCase()).get({ source: "server" }).then(function (snap) {
+    if (!window.Gate) return;
+    var d = snap.exists ? snap.data() : null;
+    if (d && d.uid === id) Gate.verified(d.username);   // official spelling from Firebase
+    else Gate.revoked();                                  // name deleted or owned by someone else
+  }).catch(function () {
+    // Offline or Firebase unreachable: say nothing, so the game stays on the loading screen.
+  });
+})();
+</script>
+</body></html>
