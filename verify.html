@@ -3,6 +3,7 @@
 <body style="background:#000;color:#ccc;font-family:sans-serif;padding:16px">
 <!-- Opened silently by the game launcher (inside the app it stays invisible).
      Open it in a normal browser as  .../verify.html?u=YourName  to see a readable test result. -->
+<script>var __t0 = Date.now(); var MIN_MS = 5000; /* minimum time the game splash stays up (milliseconds) */</script>
 <div id="out"></div>
 <script src="firebase-config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -21,7 +22,10 @@
     var d = snap.exists ? snap.data() : null;
     if (!inApp) { say(d ? "FOUND: username=" + d.username + " | owner uid=" + d.uid + (id ? (d.uid === id ? " | MATCHES id" : " | DOES NOT match id") : "")
                         : "NOT FOUND: no such username in Firebase."); return; }
-    if (d && id && d.uid === id) Gate.verified(d.username);   // official spelling from Firebase
+    if (d && id && d.uid === id) {                                 // official spelling from Firebase
+      var wait = Math.max(0, MIN_MS - (Date.now() - __t0));
+      setTimeout(function () { Gate.verified(d.username); }, wait);
+    }
     else Gate.revoked();                                        // deleted, or owned by someone else
   }).catch(function (e) {
     say("ERROR " + (e && e.code) + ": " + (e && e.message));   // in the app: stay silent so the loading screen stays up while offline
